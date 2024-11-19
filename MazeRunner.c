@@ -403,6 +403,137 @@ void setup_sprite_image() {
     memcpy16_dma((unsigned short*) sprite_image_memory, (unsigned short*) allSprites_data, (allSprites_width * allSprites_height) / 2);
 }
 
+
+/* struct for our Runner sprite's logic and behavior */
+struct Runner {
+    /* the actual sprite attribute info */
+    struct Sprite* sprite;
+
+    /* the x and y postion */
+    int x, y;
+
+    /* which frame of the animation he is on */
+    int frame;
+
+    /* the number of frames to wait before flipping */
+    int animation_delay;
+
+    /* the animation counter counts how many frames until we flip */
+    int counter;
+
+    /* whether the Runner is moving right now or not */
+    int move;
+
+    /* the number of pixels away from the edge of the screen the Runner stays */
+    int border;
+};
+
+/* initialize the Runner */
+void runner_init(struct Runner* run) {
+    run->x = 8;
+    run->y = 8;
+    run->border = 8;
+    run->frame = 0;
+    run->move = 0;
+    run->counter = 0;
+    run->animation_delay = 16;
+    run->sprite = sprite_init(run->x, run->y, SIZE_16_16, 0, 0, run->frame, 0);
+}
+
+/* move the runner left or right returns if it is at edge of the screen */
+int runner_left(struct Runner* run) {
+    /* face left */
+    sprite_set_horizontal_flip(run->sprite, 1);
+    run->move = 1;
+
+    /* if we are at the left end, just scroll the screen */
+    if (run->x < run->border) {
+        return 1;
+    } else {
+        /* else move left */
+        run->x--;
+        return 0;
+    }
+}
+int runner_right(struct Runner* run) {
+    /* face right */
+    sprite_set_horizontal_flip(run->sprite, 0);
+    run->move = 1;
+
+    /* if we are at the right end, just scroll the screen */
+    if (run->x > (SCREEN_WIDTH - 16 - run->border)) {
+        return 1;
+    } else {
+        /* else move right */
+        run->x++;
+        return 0;
+    }
+}
+
+/* move the runner up or down returns if it is at edge of the screen */
+int runner_up(struct Runner* run) {
+    /* face left */
+    sprite_set_horizontal_flip(run->sprite, 1);
+    run->move = 1;
+
+    /* if we are at the top, just scroll the screen */
+    if (run->y < run->border) {
+        return 1;
+    } else {
+        /* else move up */
+        run->y--;
+        return 0;
+    }
+}
+int runner_down(struct Runner* run) {
+    /* face right */
+    sprite_set_horizontal_flip(run->sprite, 0);
+    run->move = 1;
+
+    /* if we are at the bottom, just scroll the screen */
+    if (run->y > (SCREEN_HEIGHT - 16 - run->border)) {
+        return 1;
+    } else {
+        /* else move down */
+        run->y++;
+        return 0;
+    }
+}
+
+void runner_stop(struct Runner* run) {
+    run->move = 0;
+    run->frame = 0;
+    run->counter = 7;
+    sprite_set_offset(run->sprite, run->frame);
+}
+
+/* update the runner */
+void runner_update(struct Runner* run) {
+    if (run->move) {
+        run->counter++;
+        if (run->counter >= run->animation_delay) {
+            if(run->frame == 8){
+                run->frame = 0;
+            }
+            else{
+                run->frame = 8;
+            }
+            sprite_set_offset(run->sprite, run->frame);
+            run->counter = 0;
+        }
+    }
+
+    sprite_position(run->sprite, run->x, run->y);
+}
+
+
+
+
+
+
+
+
+
 /* a struct for the koopa's logic and behavior */
 struct Koopa {
     /* the actual sprite attribute info */
@@ -493,6 +624,16 @@ void koopa_update(struct Koopa* koopa) {
     sprite_position(koopa->sprite, koopa->x, koopa->y);
 }
 
+
+
+
+
+
+
+
+
+
+
 /* Scrolls the screen if possible, but will not scroll off screen to repeat maze */
 void safe_xscroll(int *xscroll, int scrollBy) {
     //If it is safe to scroll right
@@ -545,6 +686,11 @@ int main() {
     //struct Koopa koopa;
     //koopa_init(&koopa);
 
+    /* create the runner */
+    struct Runner runner;
+    runner_init(&runner);
+
+
     /* set initial scroll to 0 */
     int yscroll = 0;
     int xscroll = 0;
@@ -566,10 +712,6 @@ int main() {
             setup_background();
             *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE;
         }
-        /*else if(onInstructions){
-            setup_instructions();
-            *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE;
-        }*/
 
         //Menu loop
         while(onMenu){
@@ -596,33 +738,38 @@ int main() {
         /* update the koopa */
         //koopa_update(&koopa);
 
-        /* now the arrow keys move the koopa */
-        if (button_pressed(BUTTON_RIGHT)) {
-            safe_xscroll(&xscroll, 1);
-            //xscroll++;
-            
-            //if (koopa_right(&koopa)) {
-                //xscroll++;
-            //}
-        } else if (button_pressed(BUTTON_LEFT)) {
-            safe_xscroll(&xscroll, -1);
-            //xscroll--;
+        /* update the runner */
+        runner_update(&runner);
 
-            //if (koopa_left(&koopa)) {
-                //xscroll--;
-            //}
+        /* now the arrow keys move the runner */
+        if (button_pressed(BUTTON_RIGHT)) {
+            
+            if (runner_right(&runner)) {
+                safe_xscroll(&xscroll, 1);
+            }
+
+        } else if (button_pressed(BUTTON_LEFT)) {
+
+            if (runner_left(&runner)) {
+                safe_xscroll(&xscroll, -1);
+            }
+
         } else if (button_pressed(BUTTON_DOWN)) {
-            safe_yscroll(&yscroll, 1);
-            //yscroll++;
+
+            if (runner_down(&runner)){
+                safe_yscroll(&yscroll, 1);
+            }
         
         } else if (button_pressed(BUTTON_UP)) {
-            safe_yscroll(&yscroll, -1);
-            //yscroll--;
+
+            if (runner_up(&runner)){
+                safe_yscroll(&yscroll, -1);
+            }
+
+        } else {
+            runner_stop(&runner);
         }
 
-        //else {
-            //koopa_stop(&koopa);
-        //}
 
         /* wait for vblank before scrolling and moving sprites */
         wait_vblank();
@@ -631,6 +778,6 @@ int main() {
         sprite_update_all();
 
         /* delay some */
-        delay(100);
+        delay(500);
     }
 }
