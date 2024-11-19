@@ -14,23 +14,26 @@
 #define SCREEN_HEIGHT 160
 
 
-/* NEED TO ADAPT CODE FOR OUR MAP/BACKGROUND AND SPRITE IMAGE
-*
-*
 //include the background image we are using 
-#include "background.h"
+#include "bgImage.h"
 
-//include the sprite image we are using
-#include "koopa.h"
+//include the sprite images we are using
+#include "allSprites.h"
 
-//include the tile map we are using
-#include "map.h"
-*/
+//include the tile maps we are using
+#include "Maze.h" //Maze for actual gameplay
+#include "homeScreen.h" //Credit & Titlescreen
+#include "instructions.h" //Rules
+#include "black.h" //Completely black tilemap
+
 
 /* the tile mode flags needed for display control register */
 #define MODE0 0x00
+//BG0 for Menu Screen, Instructions Screen, and End Screen
 #define BG0_ENABLE 0x100
+//BG1 for completely black screen
 #define BG1_ENABLE 0x200
+//BG2 for Maze
 #define BG2_ENABLE 0x400
 #define BG3_ENABLE 0x800
 
@@ -41,6 +44,9 @@
 
 /* the control registers for the four tile layers */
 volatile unsigned short* bg0_control = (volatile unsigned short*) 0x4000008;
+volatile unsigned short* bg1_control = (volatile unsigned short*) 0x400000a;
+volatile unsigned short* bg2_control = (volatile unsigned short*) 0x400000c;
+volatile unsigned short* bg3_control = (volatile unsigned short*) 0x400000e;
 
 /* palette is always 256 colors */
 #define PALETTE_SIZE 256
@@ -69,6 +75,12 @@ volatile unsigned short* buttons = (volatile unsigned short*) 0x04000130;
 /* scrolling registers for backgrounds */
 volatile short* bg0_x_scroll = (unsigned short*) 0x4000010;
 volatile short* bg0_y_scroll = (unsigned short*) 0x4000012;
+volatile short* bg1_x_scroll = (volatile short*) 0x4000014;
+volatile short* bg1_y_scroll = (volatile short*) 0x4000016;
+volatile short* bg2_x_scroll = (volatile short*) 0x4000018;
+volatile short* bg2_y_scroll = (volatile short*) 0x400001a;
+volatile short* bg3_x_scroll = (volatile short*) 0x400001c;
+volatile short* bg3_y_scroll = (volatile short*) 0x400001e;
 
 /* the bit positions indicate each button - the first bit is for A, second for
 * B, and so on, each constant below can be ANDED into the register to get the
@@ -151,27 +163,27 @@ void memcpy16_dma(unsigned short* dest, unsigned short* source, int amount) {
 
 
 /* NEED TO EDIT THIS FOR OUR SPECIFIC TEXTURES/ART */
-/* function to setup background 0 for this program */
+/* function to setup background 2 (Maze) for this program */
 void setup_background() {
 
     /* load the palette from the image into palette memory*/
-    memcpy16_dma((unsigned short*) bg_palette, (unsigned short*) background_palette, PALETTE_SIZE);
+    memcpy16_dma((unsigned short*) bg_palette, (unsigned short*) bgImage_palette, PALETTE_SIZE);
 
     /* load the image into char block 0 */
-    memcpy16_dma((unsigned short*) char_block(0), (unsigned short*) background_data,
-            (background_width * background_height) / 2);
+    memcpy16_dma((unsigned short*) char_block(0), (unsigned short*) bgImage_data,
+            (bgImage_width * bgImage_height) / 2);
 
     /* set all control the bits in this register */
-    *bg0_control = 0 |    /* priority, 0 is highest, 3 is lowest */
+    *bg2_control = 2 |    /* priority, 0 is highest, 3 is lowest */
         (0 << 2)  |       /* the char block the image data is stored in */
         (0 << 6)  |       /* the mosaic flag */
         (1 << 7)  |       /* color mode, 0 is 16 colors, 1 is 256 colors */
-        (16 << 8) |       /* the screen block the tile data is stored in */
-        (1 << 13) |       /* wrapping flag */
-        (0 << 14);        /* bg size, 0 is 256x256 */
+        (8 << 8) |       /* the screen block the tile data is stored in */
+        (0 << 13) |       /* wrapping flag */
+        (3 << 14);        /* bg size, 0 is 256x256 */
 
-    /* load the tile data into screen block 16 */
-    memcpy16_dma((unsigned short*) screen_block(16), (unsigned short*) map, map_width * map_height);
+    /* load the Maze tile data into screen block 8 */
+    memcpy16_dma((unsigned short*) screen_block(8), (unsigned short*) Maze, Maze_width * Maze_height);
 }
 
 
@@ -342,24 +354,13 @@ void sprite_set_offset(struct Sprite* sprite, int offset) {
     sprite->attribute2 |= (offset & 0x03ff);
 }
 
-
-
-
-
-
-
-
-
-
-
-/* EDIT WITH OUR SPRITE TEXTURES */
 /* setup the sprite image and palette */
 void setup_sprite_image() {
     /* load the palette from the image into palette memory*/
-    memcpy16_dma((unsigned short*) sprite_palette, (unsigned short*) koopa_palette, PALETTE_SIZE);
+    memcpy16_dma((unsigned short*) sprite_palette, (unsigned short*) allSprites_palette, PALETTE_SIZE);
 
     /* load the image into sprite image memory */
-    memcpy16_dma((unsigned short*) sprite_image_memory, (unsigned short*) koopa_data, (koopa_width * koopa_height) / 2);
+    memcpy16_dma((unsigned short*) sprite_image_memory, (unsigned short*) allSprites_data, (allSprites_width * allSprites_height) / 2);
 }
 
 /* a struct for the koopa's logic and behavior */
@@ -452,6 +453,29 @@ void koopa_update(struct Koopa* koopa) {
     sprite_position(koopa->sprite, koopa->x, koopa->y);
 }
 
+/* Scrolls the screen if possible, but will not scroll off screen to repeat maze */
+void safe_xscroll(int *xscroll, int scrollBy) {
+    //If it is safe to scroll right
+    if(scrollBy > 0 && *xscroll < 272){
+        *xscroll += 1;
+    }
+    //If safe to scroll left
+    if(scrollBy < 0 && *xscroll > 0){
+        *xscroll -= 1;
+    }
+}
+
+/* Scrolls the screen if possible, but will not scroll off screen to repeat maze */
+void safe_yscroll(int *yscroll, int scrollBy) {
+    //If it is safe to scroll down
+    if(scrollBy > 0 && *yscroll < 352){
+        *yscroll += 1;
+    }
+    //If safe to scroll up
+    if(scrollBy < 0 && *yscroll > 0){
+        *yscroll -= 1;
+    }
+}
 
 
 
@@ -460,15 +484,12 @@ void koopa_update(struct Koopa* koopa) {
 
 
 
-
-
-/* EDIT FOR OUR GAME */
 /* the main function */
 int main() {
-    /* we set the mode to mode 0 with bg0 on */
-    *display_control = MODE0 | BG0_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
+    /* we set the mode to mode 0 with bg2 on */
+    *display_control = MODE0 | BG2_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
 
-    /* setup the background 0 */
+    /* setup the background 2 */
     setup_background();
 
     /* setup the sprite image data */
@@ -479,33 +500,50 @@ int main() {
 
 
     /* create the koopa */
-    struct Koopa koopa;
-    koopa_init(&koopa);
+    //struct Koopa koopa;
+    //koopa_init(&koopa);
 
     /* set initial scroll to 0 */
+    int yscroll = 0;
     int xscroll = 0;
 
     /* loop forever */
     while (1) {
         /* update the koopa */
-        koopa_update(&koopa);
+        //koopa_update(&koopa);
 
         /* now the arrow keys move the koopa */
         if (button_pressed(BUTTON_RIGHT)) {
-            if (koopa_right(&koopa)) {
-                xscroll++;
-            }
+            safe_xscroll(&xscroll, 1);
+            //xscroll++;
+            
+            //if (koopa_right(&koopa)) {
+                //xscroll++;
+            //}
         } else if (button_pressed(BUTTON_LEFT)) {
-            if (koopa_left(&koopa)) {
-                xscroll--;
-            }
-        } else {
-            koopa_stop(&koopa);
+            safe_xscroll(&xscroll, -1);
+            //xscroll--;
+
+            //if (koopa_left(&koopa)) {
+                //xscroll--;
+            //}
+        } else if (button_pressed(BUTTON_DOWN)) {
+            safe_yscroll(&yscroll, 1);
+            //yscroll++;
+        
+        } else if (button_pressed(BUTTON_UP)) {
+            safe_yscroll(&yscroll, -1);
+            //yscroll--;
         }
+
+        //else {
+            //koopa_stop(&koopa);
+        //}
 
         /* wait for vblank before scrolling and moving sprites */
         wait_vblank();
-        *bg0_x_scroll = xscroll;
+        *bg2_x_scroll = xscroll;
+        *bg2_y_scroll = yscroll;
         sprite_update_all();
 
         /* delay some */
