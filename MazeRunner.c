@@ -9,6 +9,9 @@
 *
 */
 
+//Booleans
+#include <stdbool.h>
+
 // Screen dimensions
 #define SCREEN_WIDTH 240
 #define SCREEN_HEIGHT 160
@@ -33,8 +36,9 @@
 #define BG0_ENABLE 0x100
 //BG1 for completely black screen
 #define BG1_ENABLE 0x200
-//BG2 for Maze
+//BG2 for Timer
 #define BG2_ENABLE 0x400
+//BG3 for Maze
 #define BG3_ENABLE 0x800
 
 /* flags to set sprite handling in display control register */
@@ -162,8 +166,7 @@ void memcpy16_dma(unsigned short* dest, unsigned short* source, int amount) {
 
 
 
-/* NEED TO EDIT THIS FOR OUR SPECIFIC TEXTURES/ART */
-/* function to setup background 2 (Maze) for this program */
+/* function to setup default backgrounds for this program */
 void setup_background() {
 
     /* load the palette from the image into palette memory*/
@@ -174,7 +177,7 @@ void setup_background() {
             (bgImage_width * bgImage_height) / 2);
 
     /* set all control the bits in this register */
-    *bg2_control = 2 |    /* priority, 0 is highest, 3 is lowest */
+    *bg3_control = 3 |    /* priority, 0 is highest, 3 is lowest */
         (0 << 2)  |       /* the char block the image data is stored in */
         (0 << 6)  |       /* the mosaic flag */
         (1 << 7)  |       /* color mode, 0 is 16 colors, 1 is 256 colors */
@@ -184,6 +187,30 @@ void setup_background() {
 
     /* load the Maze tile data into screen block 8 */
     memcpy16_dma((unsigned short*) screen_block(8), (unsigned short*) Maze, Maze_width * Maze_height);
+
+    /* set all control the bits in this register */
+    *bg1_control = 1 |    /* priority, 0 is highest, 3 is lowest */
+        (0 << 2)  |       /* the char block the image data is stored in */
+        (0 << 6)  |       /* the mosaic flag */
+        (1 << 7)  |       /* color mode, 0 is 16 colors, 1 is 256 colors */
+        (12 << 8) |       /* the screen block the tile data is stored in */
+        (0 << 13) |       /* wrapping flag */
+        (0 << 14);        /* bg size, 0 is 256x256 */
+
+    /* load the Maze tile data into screen block 8 */
+    memcpy16_dma((unsigned short*) screen_block(12), (unsigned short*) black, black_width * black_height);
+
+    /* set all control the bits in this register */
+    *bg0_control = 0 |    /* priority, 0 is highest, 3 is lowest */
+        (0 << 2)  |       /* the char block the image data is stored in */
+        (0 << 6)  |       /* the mosaic flag */
+        (1 << 7)  |       /* color mode, 0 is 16 colors, 1 is 256 colors */
+        (13 << 8) |       /* the screen block the tile data is stored in */
+        (0 << 13) |       /* wrapping flag */
+        (0 << 14);        /* bg size, 0 is 256x256 */
+
+    /* load the Maze tile data into screen block 8 */
+    memcpy16_dma((unsigned short*) screen_block(13), (unsigned short*) homeScreen, homeScreen_width * homeScreen_height);
 }
 
 
@@ -487,9 +514,11 @@ void safe_yscroll(int *yscroll, int scrollBy) {
 /* the main function */
 int main() {
     /* we set the mode to mode 0 with bg2 on */
-    *display_control = MODE0 | BG2_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
+    //*display_control = MODE0 | BG3_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
 
-    /* setup the background 2 */
+    *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE;
+
+    /* setup the background Maze:3 Black: 1 Menu:0 */
     setup_background();
 
     /* setup the sprite image data */
@@ -507,8 +536,32 @@ int main() {
     int yscroll = 0;
     int xscroll = 0;
 
+    /* True when player is on menu screen */
+    bool onMenu = true;
+    
+    /* True when player wins or game overs */
+    bool gameOver = false; 
+
     /* loop forever */
     while (1) {
+
+        //Setup for menu loop
+        if(onMenu){
+            setup_background();
+            *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE;
+        }
+
+        //Menu loop
+        while(onMenu){
+        
+            //Break out of loop
+            if(button_pressed(BUTTON_START)){
+                *display_control = MODE0 | BG3_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
+                onMenu = false;
+            }
+
+        }
+
         /* update the koopa */
         //koopa_update(&koopa);
 
@@ -542,8 +595,8 @@ int main() {
 
         /* wait for vblank before scrolling and moving sprites */
         wait_vblank();
-        *bg2_x_scroll = xscroll;
-        *bg2_y_scroll = yscroll;
+        *bg3_x_scroll = xscroll;
+        *bg3_y_scroll = yscroll;
         sprite_update_all();
 
         /* delay some */
