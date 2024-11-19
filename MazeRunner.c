@@ -213,7 +213,20 @@ void setup_background() {
     memcpy16_dma((unsigned short*) screen_block(13), (unsigned short*) homeScreen, homeScreen_width * homeScreen_height);
 }
 
+/* setup backgrounds for instructions screen after menu */
+void setup_instructions(){
+    /* set all control the bits in this register */
+    *bg0_control = 0 |    /* priority, 0 is highest, 3 is lowest */
+        (0 << 2)  |       /* the char block the image data is stored in */
+        (0 << 6)  |       /* the mosaic flag */
+        (1 << 7)  |       /* color mode, 0 is 16 colors, 1 is 256 colors */
+        (14 << 8) |       /* the screen block the tile data is stored in */
+        (0 << 13) |       /* wrapping flag */
+        (0 << 14);        /* bg size, 0 is 256x256 */
 
+    /* load the Maze tile data into screen block 8 */
+    memcpy16_dma((unsigned short*) screen_block(14), (unsigned short*) instructions, instructions_width * instructions_height);
+}
 
 
 
@@ -538,6 +551,9 @@ int main() {
 
     /* True when player is on menu screen */
     bool onMenu = true;
+
+    /* True when player is on instructions screen */
+    bool onInstructions = true;
     
     /* True when player wins or game overs */
     bool gameOver = false; 
@@ -550,14 +566,29 @@ int main() {
             setup_background();
             *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE;
         }
+        /*else if(onInstructions){
+            setup_instructions();
+            *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE;
+        }*/
 
         //Menu loop
         while(onMenu){
         
             //Break out of loop
-            if(button_pressed(BUTTON_START)){
-                *display_control = MODE0 | BG3_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
+            if(button_pressed(BUTTON_LEFT)){
+                setup_instructions();
+                *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE;
                 onMenu = false;
+            }
+
+        }
+        // Instructions (menu page 2) loop
+        while(onInstructions){
+
+            //Break out of loop
+            if(button_pressed(BUTTON_RIGHT)){
+                *display_control = MODE0 | BG3_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
+                onInstructions = false;
             }
 
         }
