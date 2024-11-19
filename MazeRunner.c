@@ -9,8 +9,9 @@
 *
 */
 
-//Booleans
+//C imports
 #include <stdbool.h>
+#include <stdio.h>
 
 // Screen dimensions
 #define SCREEN_WIDTH 240
@@ -403,6 +404,81 @@ void setup_sprite_image() {
     memcpy16_dma((unsigned short*) sprite_image_memory, (unsigned short*) allSprites_data, (allSprites_width * allSprites_height) / 2);
 }
 
+/* finds which tile a screen coordinate maps to, taking scroll into account */
+unsigned short tile_lookup(int x, int y, int xscroll, int yscroll,
+        const unsigned short* tilemap, int tilemap_w, int tilemap_h) {
+
+    /* adjust for the scroll */
+    x += xscroll;
+    y += yscroll;
+
+    /* convert from screen coordinates to tile coordinates */
+    x >>= 3;
+    y >>= 3;
+
+    /* account for wraparound */
+    while (x >= tilemap_w) {
+        x -= tilemap_w;
+    }
+    while (y >= tilemap_h) {
+        y -= tilemap_h;
+    }
+    while (x < 0) {
+        x += tilemap_w;
+    }
+    while (y < 0) {
+        y += tilemap_h;
+    }
+
+    /* the larger screen maps (bigger than 32x32) are made of multiple stitched
+       together - the offset is used for finding which screen block we are in
+       for these cases */
+    int offset = 0;
+
+    /* if the width is 64, add 0x400 offset to get to tile maps on right   */
+    if (tilemap_w == 64 && x >= 32) {
+        x -= 32;
+        offset += 0x400;
+    }
+
+    /* if height is 64 and were down there */
+    if (tilemap_h == 64 && y >= 32) {
+        y -= 32;
+
+        /* if width is also 64 add 0x800, else just 0x400 */
+        if (tilemap_w == 64) {
+            offset += 0x800;
+        } else {
+            offset += 0x400;
+        }
+    }
+
+    /* find the index in this tile map */
+    int index = y * 32 + x;
+
+    /* return the tile */
+    return tilemap[index + offset];
+}
+
+/* returns 1 if passed index is wall, 0 if path */
+int isWall(unsigned short tile){
+    int walls[] = {2,3,6,7,10,11,16,17,34,35,38,39,42,43,48,49};
+    int foundWall = 0;
+
+    for(int i = 0; i < 16; i++){
+        if(walls[i] == tile){
+            foundWall = 1;
+            break;
+        }
+    }
+        
+    if(foundWall){
+        return 1;
+    }
+    else {
+        return 0;
+    }
+}
 
 /* struct for our Runner sprite's logic and behavior */
 struct Runner {
@@ -441,7 +517,8 @@ void runner_init(struct Runner* run) {
 }
 
 /* move the runner left or right returns if it is at edge of the screen */
-int runner_left(struct Runner* run) {
+/* Also checks for wall collisions */
+int runner_left(struct Runner* run, int xscroll, int yscroll) {
     /* face left */
     sprite_set_horizontal_flip(run->sprite, 1);
     run->move = 1;
@@ -450,12 +527,17 @@ int runner_left(struct Runner* run) {
     if (run->x < run->border) {
         return 1;
     } else {
-        /* else move left */
-        run->x--;
+
+        /* Check for tile to left */
+        unsigned short tile = tile_lookup(run->x - 1, run->y + 8, xscroll, yscroll, Maze, Maze_width, Maze_height);
+
+        if(!isWall(tile)){
+            run->x--;
+        }
         return 0;
     }
 }
-int runner_right(struct Runner* run) {
+int runner_right(struct Runner* run, int xscroll, int yscroll) {
     /* face right */
     sprite_set_horizontal_flip(run->sprite, 0);
     run->move = 1;
@@ -464,14 +546,19 @@ int runner_right(struct Runner* run) {
     if (run->x > (SCREEN_WIDTH - 16 - run->border)) {
         return 1;
     } else {
-        /* else move right */
-        run->x++;
+        
+        /* check for tile to right */
+        unsigned short tile = tile_lookup(run->x + 16, run->y + 8, xscroll, yscroll, Maze, Maze_width, Maze_height);
+
+        if(!isWall(tile)){
+            run->x++;
+        }
         return 0;
     }
 }
 
 /* move the runner up or down returns if it is at edge of the screen */
-int runner_up(struct Runner* run) {
+int runner_up(struct Runner* run, int xscroll, int yscroll) {
     /* face left */
     sprite_set_horizontal_flip(run->sprite, 1);
     run->move = 1;
@@ -480,12 +567,17 @@ int runner_up(struct Runner* run) {
     if (run->y < run->border) {
         return 1;
     } else {
-        /* else move up */
-        run->y--;
+        
+        /* check for tile above */
+        unsigned short tile = tile_lookup(run->x + 8, run->y - 1, xscroll, yscroll, Maze, Maze_width, Maze_height);
+
+        if(!isWall(tile)){
+            run->y--;
+        }
         return 0;
     }
 }
-int runner_down(struct Runner* run) {
+int runner_down(struct Runner* run, int xscroll, int yscroll) {
     /* face right */
     sprite_set_horizontal_flip(run->sprite, 0);
     run->move = 1;
@@ -494,8 +586,13 @@ int runner_down(struct Runner* run) {
     if (run->y > (SCREEN_HEIGHT - 16 - run->border)) {
         return 1;
     } else {
-        /* else move down */
-        run->y++;
+
+        /* check for tile below */
+        unsigned short tile = tile_lookup(run->x + 8, run->y + 16, xscroll, yscroll, Maze, Maze_width, Maze_height);
+
+        if(!isWall(tile)){
+            run->y++;
+        }
         return 0;
     }
 }
@@ -525,111 +622,6 @@ void runner_update(struct Runner* run) {
 
     sprite_position(run->sprite, run->x, run->y);
 }
-
-
-
-
-
-
-
-
-
-/* a struct for the koopa's logic and behavior */
-struct Koopa {
-    /* the actual sprite attribute info */
-    struct Sprite* sprite;
-
-    /* the x and y postion */
-    int x, y;
-
-    /* which frame of the animation he is on */
-    int frame;
-
-    /* the number of frames to wait before flipping */
-    int animation_delay;
-
-    /* the animation counter counts how many frames until we flip */
-    int counter;
-
-    /* whether the koopa is moving right now or not */
-    int move;
-
-    /* the number of pixels away from the edge of the screen the koopa stays */
-    int border;
-};
-
-/* initialize the koopa */
-void koopa_init(struct Koopa* koopa) {
-    koopa->x = 100;
-    koopa->y = 113;
-    koopa->border = 40;
-    koopa->frame = 0;
-    koopa->move = 0;
-    koopa->counter = 0;
-    koopa->animation_delay = 8;
-    koopa->sprite = sprite_init(koopa->x, koopa->y, SIZE_16_32, 0, 0, koopa->frame, 0);
-}
-
-/* move the koopa left or right returns if it is at edge of the screen */
-int koopa_left(struct Koopa* koopa) {
-    /* face left */
-    sprite_set_horizontal_flip(koopa->sprite, 1);
-    koopa->move = 1;
-
-    /* if we are at the left end, just scroll the screen */
-    if (koopa->x < koopa->border) {
-        return 1;
-    } else {
-        /* else move left */
-        koopa->x--;
-        return 0;
-    }
-}
-int koopa_right(struct Koopa* koopa) {
-    /* face right */
-    sprite_set_horizontal_flip(koopa->sprite, 0);
-    koopa->move = 1;
-
-    /* if we are at the right end, just scroll the screen */
-    if (koopa->x > (SCREEN_WIDTH - 16 - koopa->border)) {
-        return 1;
-    } else {
-        /* else move right */
-        koopa->x++;
-        return 0;
-    }
-}
-
-void koopa_stop(struct Koopa* koopa) {
-    koopa->move = 0;
-    koopa->frame = 0;
-    koopa->counter = 7;
-    sprite_set_offset(koopa->sprite, koopa->frame);
-}
-
-/* update the koopa */
-void koopa_update(struct Koopa* koopa) {
-    if (koopa->move) {
-        koopa->counter++;
-        if (koopa->counter >= koopa->animation_delay) {
-            koopa->frame = koopa->frame + 16;
-            if (koopa->frame > 16) {
-                koopa->frame = 0;
-            }
-            sprite_set_offset(koopa->sprite, koopa->frame);
-            koopa->counter = 0;
-        }
-    }
-
-    sprite_position(koopa->sprite, koopa->x, koopa->y);
-}
-
-
-
-
-
-
-
 
 
 
@@ -682,9 +674,6 @@ int main() {
     sprite_clear();
 
 
-    /* create the koopa */
-    //struct Koopa koopa;
-    //koopa_init(&koopa);
 
     /* create the runner */
     struct Runner runner;
@@ -735,8 +724,6 @@ int main() {
 
         }
 
-        /* update the koopa */
-        //koopa_update(&koopa);
 
         /* update the runner */
         runner_update(&runner);
@@ -744,25 +731,25 @@ int main() {
         /* now the arrow keys move the runner */
         if (button_pressed(BUTTON_RIGHT)) {
             
-            if (runner_right(&runner)) {
+            if (runner_right(&runner,xscroll,yscroll)) {
                 safe_xscroll(&xscroll, 1);
             }
 
         } else if (button_pressed(BUTTON_LEFT)) {
 
-            if (runner_left(&runner)) {
+            if (runner_left(&runner,xscroll,yscroll)) {
                 safe_xscroll(&xscroll, -1);
             }
 
         } else if (button_pressed(BUTTON_DOWN)) {
 
-            if (runner_down(&runner)){
+            if (runner_down(&runner,xscroll,yscroll)){
                 safe_yscroll(&yscroll, 1);
             }
         
         } else if (button_pressed(BUTTON_UP)) {
 
-            if (runner_up(&runner)){
+            if (runner_up(&runner,xscroll,yscroll)){
                 safe_yscroll(&yscroll, -1);
             }
 
