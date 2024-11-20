@@ -404,6 +404,7 @@ void setup_sprite_image() {
     memcpy16_dma((unsigned short*) sprite_image_memory, (unsigned short*) allSprites_data, (allSprites_width * allSprites_height) / 2);
 }
 
+
 /* finds which tile a screen coordinate maps to, taking scroll into account */
 unsigned short tile_lookup(int x, int y, int xscroll, int yscroll,
         const unsigned short* tilemap, int tilemap_w, int tilemap_h) {
@@ -506,8 +507,8 @@ struct Runner {
 
 /* initialize the Runner */
 void runner_init(struct Runner* run) {
-    run->x = 8;
-    run->y = 8;
+    run->x = 16;
+    run->y = 16;
     run->border = 8;
     run->frame = 0;
     run->move = 0;
@@ -626,6 +627,54 @@ void runner_update(struct Runner* run) {
 
 
 
+
+/* struct for our Key sprite's logic and behavior */
+struct Key {
+    /* the actual sprite attribute info */
+    struct Sprite* sprite;
+
+    /* the x and y postion */
+    int x, y;
+
+    /* which frame of the animation he is on */
+    int frame;
+
+    /* the number of frames to wait before flipping */
+    int animation_delay;
+
+    /* the animation counter counts how many frames until we flip */
+    int counter;
+};
+
+/* initialize the Runner */
+void key_init(struct Key* key, int x, int y) {
+    key->x = x;
+    key->y = y;
+    key->frame = 16;
+    key->counter = 0;
+    key->animation_delay = 32;
+    key->sprite = sprite_init(key->x, key->y, SIZE_16_16, 0, 0, key->frame, 1);
+}
+
+/* update the runner */
+void key_update(struct Key* key) {
+    key->counter++;
+    if (key->counter >= key->animation_delay) {
+        if(key->frame == 24){
+            key->frame = 16;
+        }
+        else{
+            key->frame = 24;
+        }
+        sprite_set_offset(key->sprite, key->frame);
+        key->counter = 0;
+    }
+}
+
+
+
+
+
 /* Scrolls the screen if possible, but will not scroll off screen to repeat maze */
 void safe_xscroll(int *xscroll, int scrollBy) {
     //If it is safe to scroll right
@@ -678,7 +727,14 @@ int main() {
     /* create the runner */
     struct Runner runner;
     runner_init(&runner);
-
+    
+    /* create keys */
+    struct Key key1;
+    key_init(&key1, 80, 144);
+    struct Key key2;
+    key_init(&key2, 368, 112);
+    struct Key key3;
+    key_init(&key3, 384, 384);
 
     /* set initial scroll to 0 */
     int yscroll = 0;
@@ -728,29 +784,46 @@ int main() {
         /* update the runner */
         runner_update(&runner);
 
+        /* update keys */
+        key_update(&key1);
+        key_update(&key2);
+        key_update(&key3);
+
         /* now the arrow keys move the runner */
         if (button_pressed(BUTTON_RIGHT)) {
             
             if (runner_right(&runner,xscroll,yscroll)) {
                 safe_xscroll(&xscroll, 1);
+                sprite_move(key1.sprite, -1, 0);
+                sprite_move(key2.sprite, -1, 0);
+                sprite_move(key3.sprite, -1, 0);
             }
 
         } else if (button_pressed(BUTTON_LEFT)) {
 
             if (runner_left(&runner,xscroll,yscroll)) {
                 safe_xscroll(&xscroll, -1);
+                sprite_move(key1.sprite, 1, 0);
+                sprite_move(key2.sprite, 1, 0);
+                sprite_move(key3.sprite, 1, 0);
             }
 
         } else if (button_pressed(BUTTON_DOWN)) {
 
             if (runner_down(&runner,xscroll,yscroll)){
                 safe_yscroll(&yscroll, 1);
+                sprite_move(key1.sprite, 0, -1);
+                sprite_move(key2.sprite, 0, -1);
+                sprite_move(key3.sprite, 0, -1);
             }
         
         } else if (button_pressed(BUTTON_UP)) {
 
             if (runner_up(&runner,xscroll,yscroll)){
                 safe_yscroll(&yscroll, -1);
+                sprite_move(key1.sprite, 0, 1);
+                sprite_move(key2.sprite, 0, 1);
+                sprite_move(key3.sprite, 0, 1);
             }
 
         } else {
