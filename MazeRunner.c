@@ -503,10 +503,14 @@ struct Runner {
 
     /* the number of pixels away from the edge of the screen the Runner stays */
     int border;
+
+    /* Number of keys picked up */
+    int keys;
 };
 
 /* initialize the Runner */
 void runner_init(struct Runner* run) {
+    run->keys = 0;
     run->x = 16;
     run->y = 16;
     run->border = 8;
@@ -644,10 +648,14 @@ struct Key {
 
     /* the animation counter counts how many frames until we flip */
     int counter;
+
+    /* whether key is visible to player */
+    int visible;
 };
 
-/* initialize the Runner */
+/* initialize the key */
 void key_init(struct Key* key, int x, int y) {
+    key->visible = 1;
     key->x = x;
     key->y = y;
     key->frame = 16;
@@ -656,47 +664,95 @@ void key_init(struct Key* key, int x, int y) {
     key->sprite = sprite_init(key->x, key->y, SIZE_16_16, 0, 0, key->frame, 1);
 }
 
-/* update the runner */
+/* update the key */
 void key_update(struct Key* key) {
-    key->counter++;
-    if (key->counter >= key->animation_delay) {
-        if(key->frame == 24){
-            key->frame = 16;
+    if(key->visible == 1){
+        key->counter++;
+        if (key->counter >= key->animation_delay) {
+            if(key->frame == 24){
+                key->frame = 16;
+            }
+            else{
+                key->frame = 24;
+            }
+            sprite_set_offset(key->sprite, key->frame);
+            key->counter = 0;
         }
-        else{
-            key->frame = 24;
-        }
+    }
+    //Key has been picked up
+    else{
+        key->frame = 40;
         sprite_set_offset(key->sprite, key->frame);
-        key->counter = 0;
+    }
+}
+
+/* struct for Gate sprite's logic and behavior */
+struct Gate {
+    /* the actual sprite attribute info */
+    struct Sprite* sprite;
+
+    /* the x and y postion */
+    int x, y;
+
+    /* which frame of the animation he is on */
+    int frame;
+
+    /* whether gate is visible to player */
+    int visible;
+};
+
+/* initialize the gate */
+void gate_init(struct Gate* gate, int x, int y) {
+    gate->visible = 1;
+    gate->x = x;
+    gate->y = y;
+    gate->frame = 32;
+    gate->sprite = sprite_init(gate->x, gate->y, SIZE_16_16, 0, 0, gate->frame, 1);
+}
+
+/* update the key */
+void gate_update(struct Gate* gate) {
+    if(gate->visible == 1){
+        gate->frame = 32;
+        sprite_set_offset(gate->sprite, gate->frame);
+    }
+    //Key has been picked up
+    else{
+        gate->frame = 40;
+        sprite_set_offset(gate->sprite, gate->frame);
     }
 }
 
 
 
-
-
 /* Scrolls the screen if possible, but will not scroll off screen to repeat maze */
-void safe_xscroll(int *xscroll, int scrollBy) {
+int safe_xscroll(int *xscroll, int scrollBy) {
     //If it is safe to scroll right
     if(scrollBy > 0 && *xscroll < 272){
         *xscroll += 1;
+        return 1;
     }
     //If safe to scroll left
     if(scrollBy < 0 && *xscroll > 0){
         *xscroll -= 1;
+        return 1;
     }
+    return 0;
 }
 
 /* Scrolls the screen if possible, but will not scroll off screen to repeat maze */
-void safe_yscroll(int *yscroll, int scrollBy) {
+int safe_yscroll(int *yscroll, int scrollBy) {
     //If it is safe to scroll down
     if(scrollBy > 0 && *yscroll < 352){
         *yscroll += 1;
+        return 1;
     }
     //If safe to scroll up
     if(scrollBy < 0 && *yscroll > 0){
         *yscroll -= 1;
+        return 1;
     }
+    return 0;
 }
 
 
@@ -735,6 +791,10 @@ int main() {
     key_init(&key2, 368, 112);
     struct Key key3;
     key_init(&key3, 384, 384);
+
+    /* create gates */
+    struct Gate gate1;
+    gate_init(&gate1, 176, 32);
 
     /* set initial scroll to 0 */
     int yscroll = 0;
@@ -789,46 +849,64 @@ int main() {
         key_update(&key2);
         key_update(&key3);
 
+        /* update gates */
+        gate_update(&gate1);
+
         /* now the arrow keys move the runner */
         if (button_pressed(BUTTON_RIGHT)) {
             
             if (runner_right(&runner,xscroll,yscroll)) {
-                safe_xscroll(&xscroll, 1);
-                sprite_move(key1.sprite, -1, 0);
-                sprite_move(key2.sprite, -1, 0);
-                sprite_move(key3.sprite, -1, 0);
+                if(safe_xscroll(&xscroll, 1)){
+                    sprite_move(key1.sprite, -1, 0);
+                    sprite_move(key2.sprite, -1, 0);
+                    sprite_move(key3.sprite, -1, 0);
+                    sprite_move(gate1.sprite, -1, 0);
+                }
             }
 
         } else if (button_pressed(BUTTON_LEFT)) {
 
             if (runner_left(&runner,xscroll,yscroll)) {
-                safe_xscroll(&xscroll, -1);
-                sprite_move(key1.sprite, 1, 0);
-                sprite_move(key2.sprite, 1, 0);
-                sprite_move(key3.sprite, 1, 0);
+                if(safe_xscroll(&xscroll, -1)){
+                    sprite_move(key1.sprite, 1, 0);
+                    sprite_move(key2.sprite, 1, 0);
+                    sprite_move(key3.sprite, 1, 0);
+                    sprite_move(gate1.sprite, 1, 0);
+                }
             }
 
         } else if (button_pressed(BUTTON_DOWN)) {
 
             if (runner_down(&runner,xscroll,yscroll)){
-                safe_yscroll(&yscroll, 1);
-                sprite_move(key1.sprite, 0, -1);
-                sprite_move(key2.sprite, 0, -1);
-                sprite_move(key3.sprite, 0, -1);
+                if(safe_yscroll(&yscroll, 1)){
+                    sprite_move(key1.sprite, 0, -1);
+                    sprite_move(key2.sprite, 0, -1);
+                    sprite_move(key3.sprite, 0, -1);
+                    sprite_move(gate1.sprite, 0, -1);
+                }
             }
         
         } else if (button_pressed(BUTTON_UP)) {
 
             if (runner_up(&runner,xscroll,yscroll)){
-                safe_yscroll(&yscroll, -1);
-                sprite_move(key1.sprite, 0, 1);
-                sprite_move(key2.sprite, 0, 1);
-                sprite_move(key3.sprite, 0, 1);
+                if(safe_yscroll(&yscroll, -1)){
+                    sprite_move(key1.sprite, 0, 1);
+                    sprite_move(key2.sprite, 0, 1);
+                    sprite_move(key3.sprite, 0, 1);
+                    sprite_move(gate1.sprite, 0, 1);
+                }
             }
 
         } else {
             runner_stop(&runner);
         }
+
+
+        /* If the runner grabs a key */
+        /*if((runner.x+8 < key1.x+16) && (runner.x+8 > key1.x) && (runner.y+8 > key1.y) && (runner.y+8 < key1.y+16)){
+            runner.keys = 1;
+            key1.visible = 0;
+        }*/
 
 
         /* wait for vblank before scrolling and moving sprites */
