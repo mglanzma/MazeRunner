@@ -10,6 +10,7 @@ GOAL OF GAME:
 
 
 TIPS FOR IAN:
+    
     A file named MazeTemplate.png is included in the github. This file has the correct path to win the game colored in green. All other paths colored in red should not be taken and are just distractions.
 
     There is a WIN and LOSE screen for each outcome. When the time runs out, the LOSE screen will appear. If you escape the maze by following the path, the WIN screen appears. 
