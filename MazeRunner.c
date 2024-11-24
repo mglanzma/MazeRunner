@@ -762,6 +762,16 @@ void checkKeyCollisions(struct Runner* run, struct Key* key1, struct Key* key2, 
 
 }
 
+/* method to move all key and gate sprites that many pixel for screen scrolling */
+void moveKeys_Gates(struct Key* key1, struct Key* key2, struct Key* key3, struct Gate* gate1, struct Gate* gate2, struct Gate* gate3, int x, int y){
+    sprite_move(key1->sprite, x, y);
+    sprite_move(key2->sprite, x, y);
+    sprite_move(key3->sprite, x, y);
+    sprite_move(gate1->sprite, x, y);
+    sprite_move(gate2->sprite, x, y);
+    sprite_move(gate3->sprite, x, y);
+}
+
 
 
 /* Scrolls the screen if possible, but will not scroll off screen to repeat maze */
@@ -906,12 +916,7 @@ int main() {
             
             if (runner_right(&runner,xscroll,yscroll)) {
                 if(safe_xscroll(&xscroll, 1, &runner)){
-                    sprite_move(key1.sprite, -2, 0);
-                    sprite_move(key2.sprite, -2, 0);
-                    sprite_move(key3.sprite, -2, 0);
-                    sprite_move(gate1.sprite, -2, 0);
-                    sprite_move(gate2.sprite, -2, 0);
-                    sprite_move(gate3.sprite, -2, 0);
+                    moveKeys_Gates(&key1,&key2,&key3,&gate1,&gate2,&gate3,-2,0);
                 }
             }
 
@@ -919,12 +924,7 @@ int main() {
 
             if (runner_left(&runner,xscroll,yscroll)) {
                 if(safe_xscroll(&xscroll, -1, &runner)){
-                    sprite_move(key1.sprite, 2, 0);
-                    sprite_move(key2.sprite, 2, 0);
-                    sprite_move(key3.sprite, 2, 0);
-                    sprite_move(gate1.sprite, 2, 0);
-                    sprite_move(gate2.sprite, 2, 0);
-                    sprite_move(gate3.sprite, 2, 0);
+                    moveKeys_Gates(&key1,&key2,&key3,&gate1,&gate2,&gate3,2,0);
                 }
             }
 
@@ -932,12 +932,7 @@ int main() {
 
             if (runner_down(&runner,xscroll,yscroll)){
                 if(safe_yscroll(&yscroll, 1, &runner)){
-                    sprite_move(key1.sprite, 0, -2);
-                    sprite_move(key2.sprite, 0, -2);
-                    sprite_move(key3.sprite, 0, -2);
-                    sprite_move(gate1.sprite, 0, -2);
-                    sprite_move(gate2.sprite, 0, -2);
-                    sprite_move(gate3.sprite, 0, -2);
+                    moveKeys_Gates(&key1,&key2,&key3,&gate1,&gate2,&gate3,0,-2);
                 }
             }
         
@@ -945,12 +940,7 @@ int main() {
 
             if (runner_up(&runner,xscroll,yscroll)){
                 if(safe_yscroll(&yscroll, -1, &runner)){
-                    sprite_move(key1.sprite, 0, 2);
-                    sprite_move(key2.sprite, 0, 2);
-                    sprite_move(key3.sprite, 0, 2);
-                    sprite_move(gate1.sprite, 0, 2);
-                    sprite_move(gate2.sprite, 0, 2);
-                    sprite_move(gate3.sprite, 0, 2);
+                    moveKeys_Gates(&key1,&key2,&key3,&gate1,&gate2,&gate3,0,2);
                 }
             }
 
