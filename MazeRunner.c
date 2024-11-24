@@ -29,6 +29,7 @@
 #include "homeScreen.h" //Credit & Titlescreen
 #include "instructions.h" //Rules
 #include "black.h" //Completely black tilemap
+#include "gameoverScreen.h" //Screen shown if player loses
 
 
 /* the tile mode flags needed for display control register */
@@ -227,6 +228,21 @@ void setup_instructions(){
 
     /* load the Maze tile data into screen block 8 */
     memcpy16_dma((unsigned short*) screen_block(14), (unsigned short*) instructions, instructions_width * instructions_height);
+}
+
+/* sets up background0 for when the game is over after time runs out */
+void setup_gameOver(){
+    /* set all control the bits in this register */
+    *bg0_control = 0 |    /* priority, 0 is highest, 3 is lowest */
+        (0 << 2)  |       /* the char block the image data is stored in */
+        (0 << 6)  |       /* the mosaic flag */
+        (1 << 7)  |       /* color mode, 0 is 16 colors, 1 is 256 colors */
+        (15 << 8) |       /* the screen block the tile data is stored in */
+        (0 << 13) |       /* wrapping flag */
+        (0 << 14);        /* bg size, 0 is 256x256 */
+
+    /* load the Maze tile data into screen block 8 */
+    memcpy16_dma((unsigned short*) screen_block(15), (unsigned short*) gameoverScreen, gameoverScreen_width * gameoverScreen_height);
 }
 
 
@@ -499,21 +515,6 @@ int isWall(unsigned short tile, int numKeys){
         return checkWall(walls, loops, tile);
     }
 
-    /*int foundWall = 0;
-
-    for(int i = 0; i < loops; i++){
-        if(walls[i] == tile){
-            foundWall = 1;
-            break;
-        }
-    }
-        
-    if(foundWall){
-        return 1;
-    }
-    else {
-        return 0;
-    }*/
 }
 
 /* struct for our Runner sprite's logic and behavior */
@@ -762,6 +763,68 @@ void gate_update(struct Gate* gate) {
     }
 }
 
+/* struct for our timer sprite's logic and behavior */
+struct timerDigit {
+    /* the actual sprite attribute info */
+    struct Sprite* sprite;
+
+    /* the x and y postion */
+    int x, y;
+
+    /* which frame of the animation he is on */
+    int frame;
+
+    /* the decimal number currently displayed by this sprite */
+    int num;
+};
+
+/* helper method to get frame from decimal number */
+int getFrameDigit(int digit){
+    if(digit == 0){
+        return 48;
+    }
+    else if(digit == 1){
+        return 56;
+    }else if(digit == 2){
+        return 64;
+    }else if(digit == 3){
+        return 72;
+    }else if(digit == 4){
+        return 80;
+    }else if(digit == 5){
+        return 88;
+    }else if(digit == 6){
+        return 96;
+    }else if(digit == 7){
+        return 104;
+    }else if(digit == 8){
+        return 112;
+    }else if(digit == 9){
+        return 120;
+    }
+    else{
+        return 40;
+    }
+}
+
+/* initialize the timer digits */
+void timerDigit_init(struct timerDigit* dig, int x, int y, int num) {
+    dig->x = x;
+    dig->y = y;
+    dig->num = num;
+    dig->frame = getFrameDigit(num);
+    dig->sprite = sprite_init(dig->x, dig->y, SIZE_16_16, 0, 0, dig->frame, 1);
+}
+
+/* update the timer digits */
+void timerDigit_update(struct timerDigit* dig, int newNum) {
+    dig->frame = getFrameDigit(newNum);
+    dig->num = newNum;
+    sprite_set_offset(dig->sprite, dig->frame);
+}
+
+
+
 
 
 /* Method used to check if the runner touches a key */
@@ -801,7 +864,7 @@ void checkKeyCollisions(struct Runner* run, struct Key* key1, struct Key* key2, 
 
 }
 
-/* method to move all key and gate sprites that many pixel for screen scrolling */
+/* method to move all key, gate, & clock sprites when screen scrolling */
 void moveKeys_Gates(struct Key* key1, struct Key* key2, struct Key* key3, struct Gate* gate1, struct Gate* gate2, struct Gate* gate3, int x, int y){
     sprite_move(key1->sprite, x, y);
     sprite_move(key2->sprite, x, y);
@@ -871,6 +934,13 @@ int main() {
     sprite_clear();
 
 
+    /* amount of time the player starts the game with */
+    int clockTime = 145;
+    /* number of frames delay before decrementing clock */
+    int clockDelay = 32;
+    /* current count before clock decrements */
+    int clockCount = 0;
+
 
     /* create the runner */
     struct Runner runner;
@@ -892,6 +962,18 @@ int main() {
     struct Gate gate3;
     gate_init(&gate3, 240, 496);
 
+    /* create the digits of the clock */
+    int startingDigit1 = clockTime%10;
+    int startingDigit10 = (clockTime%100)/10;
+    int startingDigit100 = clockTime/100;
+
+    struct timerDigit digit1;
+    timerDigit_init(&digit1,224,0,startingDigit1); 
+    struct timerDigit digit10;
+    timerDigit_init(&digit10,208,0,startingDigit10);
+    struct timerDigit digit100;
+    timerDigit_init(&digit100,192,0,startingDigit100);
+
     /* set initial scroll to 0 */
     int yscroll = 0;
     int xscroll = 0;
@@ -902,8 +984,13 @@ int main() {
     /* True when player is on instructions screen */
     bool onInstructions = true;
     
-    /* True when player wins or game overs */
+    /* True when player loses on time */
     bool gameOver = false; 
+
+    /* True if player wins by escaping */
+    bool playerWon = false;
+
+    
 
     /* loop forever */
     while (1) {
@@ -934,6 +1021,34 @@ int main() {
                 onInstructions = false;
             }
 
+        }
+
+        //For every frame, the clockCount increments
+        clockCount++;
+        //If sufficient frames have passed, the clock gets updated
+        if(clockCount >= clockDelay){
+            clockCount = 0;
+            clockTime -= 1;
+            //If time is up, the game ends
+            if(clockTime < 0){
+                gameOver = true;
+            }
+            //If there is still time remaining, the sprites get updated
+            else{
+                startingDigit1 = clockTime%10;
+                startingDigit10 = (clockTime%100)/10;
+                startingDigit100 = clockTime/100;
+                timerDigit_update(&digit1, startingDigit1);
+                timerDigit_update(&digit10, startingDigit10);
+                timerDigit_update(&digit100, startingDigit100);
+            }
+        }
+
+        
+        /* IF CLOCK RUNS OUT: GAME OVER */
+        while(gameOver){
+            setup_gameOver();
+            *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE;
         }
 
 
