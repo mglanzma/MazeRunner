@@ -30,6 +30,7 @@
 #include "instructions.h" //Rules
 #include "black.h" //Completely black tilemap
 #include "gameoverScreen.h" //Screen shown if player loses
+#include "winScreen.h" //Screen shown if player escapes the maze
 
 
 /* the tile mode flags needed for display control register */
@@ -162,12 +163,6 @@ void memcpy16_dma(unsigned short* dest, unsigned short* source, int amount) {
 
 
 
-
-
-
-
-
-
 /* function to setup default backgrounds for this program */
 void setup_background() {
 
@@ -245,9 +240,20 @@ void setup_gameOver(){
     memcpy16_dma((unsigned short*) screen_block(15), (unsigned short*) gameoverScreen, gameoverScreen_width * gameoverScreen_height);
 }
 
+/* Sets up the background when the player escapes the maze */
+void setup_playerWon(){
+    /* set all control the bits in this register */
+    *bg0_control = 0 |    /* priority, 0 is highest, 3 is lowest */
+        (0 << 2)  |       /* the char block the image data is stored in */
+        (0 << 6)  |       /* the mosaic flag */
+        (1 << 7)  |       /* color mode, 0 is 16 colors, 1 is 256 colors */
+        (16 << 8) |       /* the screen block the tile data is stored in */
+        (0 << 13) |       /* wrapping flag */
+        (0 << 14);        /* bg size, 0 is 256x256 */
 
-
-
+    /* load the Maze tile data into screen block 8 */
+    memcpy16_dma((unsigned short*) screen_block(16), (unsigned short*) winScreen, winScreen_width * winScreen_height);
+}
 
 
 
@@ -559,7 +565,7 @@ void runner_init(struct Runner* run) {
 
 /* move the runner left or right returns if it is at edge of the screen */
 /* Also checks for wall collisions */
-int runner_left(struct Runner* run, int xscroll, int yscroll) {
+int runner_left(struct Runner* run, int xscroll, int yscroll, bool* playerWon) {
     /* face left */
     sprite_set_horizontal_flip(run->sprite, 1);
     run->move = 1;
@@ -573,13 +579,18 @@ int runner_left(struct Runner* run, int xscroll, int yscroll) {
         unsigned short tile = tile_lookup(run->x - 1, run->y + 8, xscroll, yscroll, Maze, Maze_width, Maze_height);
         int numKey = run->keys;
 
-        if(!isWall(tile, numKey)){
+        //Win condition
+        if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){
+            *playerWon = true;
+        }
+        //Path tile
+        else if(!isWall(tile, numKey)){
             run->x--;
         }
         return 0;
     }
 }
-int runner_right(struct Runner* run, int xscroll, int yscroll) {
+int runner_right(struct Runner* run, int xscroll, int yscroll, bool* playerWon) {
     /* face right */
     sprite_set_horizontal_flip(run->sprite, 0);
     run->move = 1;
@@ -593,7 +604,12 @@ int runner_right(struct Runner* run, int xscroll, int yscroll) {
         unsigned short tile = tile_lookup(run->x + 16, run->y + 8, xscroll, yscroll, Maze, Maze_width, Maze_height);
         int numKey = run->keys;
 
-        if(!isWall(tile, numKey)){
+        //Win condition
+        if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){
+            *playerWon = true;
+        }
+        //Path tile
+        else if(!isWall(tile, numKey)){
             run->x++;
         }
         return 0;
@@ -601,7 +617,7 @@ int runner_right(struct Runner* run, int xscroll, int yscroll) {
 }
 
 /* move the runner up or down returns if it is at edge of the screen */
-int runner_up(struct Runner* run, int xscroll, int yscroll) {
+int runner_up(struct Runner* run, int xscroll, int yscroll, bool* playerWon) {
     /* face left */
     sprite_set_horizontal_flip(run->sprite, 1);
     run->move = 1;
@@ -615,13 +631,18 @@ int runner_up(struct Runner* run, int xscroll, int yscroll) {
         unsigned short tile = tile_lookup(run->x + 8, run->y - 1, xscroll, yscroll, Maze, Maze_width, Maze_height);
         int numKey = run->keys;
 
-        if(!isWall(tile, numKey)){
+        //Win condition
+        if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){
+            *playerWon = true;
+        }
+        //Path tile
+        else if(!isWall(tile, numKey)){
             run->y--;
         }
         return 0;
     }
 }
-int runner_down(struct Runner* run, int xscroll, int yscroll) {
+int runner_down(struct Runner* run, int xscroll, int yscroll, bool* playerWon) {
     /* face right */
     sprite_set_horizontal_flip(run->sprite, 0);
     run->move = 1;
@@ -634,8 +655,13 @@ int runner_down(struct Runner* run, int xscroll, int yscroll) {
         /* check for tile below */
         unsigned short tile = tile_lookup(run->x + 8, run->y + 16, xscroll, yscroll, Maze, Maze_width, Maze_height);
         int numKey = run->keys;
-
-        if(!isWall(tile, numKey)){
+        
+        //Win condition
+        if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){
+            *playerWon = true;
+        }
+        //Path tile
+        else if(!isWall(tile, numKey)){
             run->y++;
         }
         return 0;
@@ -935,7 +961,7 @@ int main() {
 
 
     /* amount of time the player starts the game with */
-    int clockTime = 145;
+    int clockTime = 250;
     /* number of frames delay before decrementing clock */
     int clockDelay = 32;
     /* current count before clock decrements */
@@ -1023,6 +1049,12 @@ int main() {
 
         }
 
+        //Player escaped the maze and won
+        while(playerWon){
+            setup_playerWon();
+            *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE;
+        }
+
         //For every frame, the clockCount increments
         clockCount++;
         //If sufficient frames have passed, the clock gets updated
@@ -1068,7 +1100,7 @@ int main() {
         /* now the arrow keys move the runner */
         if (button_pressed(BUTTON_RIGHT)) {
             
-            if (runner_right(&runner,xscroll,yscroll)) {
+            if (runner_right(&runner,xscroll,yscroll,&playerWon)) {
                 if(safe_xscroll(&xscroll, 1, &runner)){
                     moveKeys_Gates(&key1,&key2,&key3,&gate1,&gate2,&gate3,-2,0);
                 }
@@ -1076,7 +1108,7 @@ int main() {
 
         } else if (button_pressed(BUTTON_LEFT)) {
 
-            if (runner_left(&runner,xscroll,yscroll)) {
+            if (runner_left(&runner,xscroll,yscroll,&playerWon)) {
                 if(safe_xscroll(&xscroll, -1, &runner)){
                     moveKeys_Gates(&key1,&key2,&key3,&gate1,&gate2,&gate3,2,0);
                 }
@@ -1084,7 +1116,7 @@ int main() {
 
         } else if (button_pressed(BUTTON_DOWN)) {
 
-            if (runner_down(&runner,xscroll,yscroll)){
+            if (runner_down(&runner,xscroll,yscroll,&playerWon)){
                 if(safe_yscroll(&yscroll, 1, &runner)){
                     moveKeys_Gates(&key1,&key2,&key3,&gate1,&gate2,&gate3,0,-2);
                 }
@@ -1092,7 +1124,7 @@ int main() {
         
         } else if (button_pressed(BUTTON_UP)) {
 
-            if (runner_up(&runner,xscroll,yscroll)){
+            if (runner_up(&runner,xscroll,yscroll,&playerWon)){
                 if(safe_yscroll(&yscroll, -1, &runner)){
                     moveKeys_Gates(&key1,&key2,&key3,&gate1,&gate2,&gate3,0,2);
                 }
