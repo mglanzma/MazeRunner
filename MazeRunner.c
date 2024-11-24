@@ -726,7 +726,7 @@ void gate_update(struct Gate* gate) {
 
 
 /* Method used to check if the runner touches a key */
-void checkKeyCollisions(struct Runner* run, struct Key* key1, struct Key* key2, struct Key* key3, struct Gate* gate1, int xscroll, int yscroll){
+void checkKeyCollisions(struct Runner* run, struct Key* key1, struct Key* key2, struct Key* key3, struct Gate* gate1, struct Gate* gate2, struct Gate* gate3, int xscroll, int yscroll){
 
     /* check the tile runner standing on */
     unsigned short tile = tile_lookup(run->x + 8, run->y + 8, xscroll, yscroll, Maze, Maze_width, Maze_height);
@@ -751,10 +751,12 @@ void checkKeyCollisions(struct Runner* run, struct Key* key1, struct Key* key2, 
         else if(foundKey == 162 || foundKey == 163 || foundKey == 194 || foundKey == 195){
             key2->visible = 0;
             run->keys = 2;
+            gate2->visible = 0;
         }
         else if(foundKey == 164 || foundKey == 165 || foundKey == 196 || foundKey == 197){
             key3->visible = 0;
             run->keys = 3;
+            gate3->visible = 0;
         }
     }
 
@@ -763,30 +765,34 @@ void checkKeyCollisions(struct Runner* run, struct Key* key1, struct Key* key2, 
 
 
 /* Scrolls the screen if possible, but will not scroll off screen to repeat maze */
-int safe_xscroll(int *xscroll, int scrollBy) {
+int safe_xscroll(int *xscroll, int scrollBy, struct Runner* run) {
     //If it is safe to scroll right
     if(scrollBy > 0 && *xscroll < 272){
-        *xscroll += 1;
+        *xscroll += 2;
+        run->x -= 1;
         return 1;
     }
     //If safe to scroll left
     if(scrollBy < 0 && *xscroll > 0){
-        *xscroll -= 1;
+        *xscroll -= 2;
+        run->x += 1;
         return 1;
     }
     return 0;
 }
 
 /* Scrolls the screen if possible, but will not scroll off screen to repeat maze */
-int safe_yscroll(int *yscroll, int scrollBy) {
+int safe_yscroll(int *yscroll, int scrollBy, struct Runner* run) {
     //If it is safe to scroll down
     if(scrollBy > 0 && *yscroll < 352){
-        *yscroll += 1;
+        *yscroll += 2;
+        run->y -= 1;
         return 1;
     }
     //If safe to scroll up
     if(scrollBy < 0 && *yscroll > 0){
-        *yscroll -= 1;
+        *yscroll -= 2;
+        run->y += 1;
         return 1;
     }
     return 0;
@@ -832,6 +838,10 @@ int main() {
     /* create gates */
     struct Gate gate1;
     gate_init(&gate1, 176, 32);
+    struct Gate gate2;
+    gate_init(&gate2, 192, 240);
+    struct Gate gate3;
+    gate_init(&gate3, 240, 496);
 
     /* set initial scroll to 0 */
     int yscroll = 0;
@@ -888,49 +898,59 @@ int main() {
 
         /* update gates */
         gate_update(&gate1);
+        gate_update(&gate2);
+        gate_update(&gate3);
 
         /* now the arrow keys move the runner */
         if (button_pressed(BUTTON_RIGHT)) {
             
             if (runner_right(&runner,xscroll,yscroll)) {
-                if(safe_xscroll(&xscroll, 1)){
-                    sprite_move(key1.sprite, -1, 0);
-                    sprite_move(key2.sprite, -1, 0);
-                    sprite_move(key3.sprite, -1, 0);
-                    sprite_move(gate1.sprite, -1, 0);
+                if(safe_xscroll(&xscroll, 1, &runner)){
+                    sprite_move(key1.sprite, -2, 0);
+                    sprite_move(key2.sprite, -2, 0);
+                    sprite_move(key3.sprite, -2, 0);
+                    sprite_move(gate1.sprite, -2, 0);
+                    sprite_move(gate2.sprite, -2, 0);
+                    sprite_move(gate3.sprite, -2, 0);
                 }
             }
 
         } else if (button_pressed(BUTTON_LEFT)) {
 
             if (runner_left(&runner,xscroll,yscroll)) {
-                if(safe_xscroll(&xscroll, -1)){
-                    sprite_move(key1.sprite, 1, 0);
-                    sprite_move(key2.sprite, 1, 0);
-                    sprite_move(key3.sprite, 1, 0);
-                    sprite_move(gate1.sprite, 1, 0);
+                if(safe_xscroll(&xscroll, -1, &runner)){
+                    sprite_move(key1.sprite, 2, 0);
+                    sprite_move(key2.sprite, 2, 0);
+                    sprite_move(key3.sprite, 2, 0);
+                    sprite_move(gate1.sprite, 2, 0);
+                    sprite_move(gate2.sprite, 2, 0);
+                    sprite_move(gate3.sprite, 2, 0);
                 }
             }
 
         } else if (button_pressed(BUTTON_DOWN)) {
 
             if (runner_down(&runner,xscroll,yscroll)){
-                if(safe_yscroll(&yscroll, 1)){
-                    sprite_move(key1.sprite, 0, -1);
-                    sprite_move(key2.sprite, 0, -1);
-                    sprite_move(key3.sprite, 0, -1);
-                    sprite_move(gate1.sprite, 0, -1);
+                if(safe_yscroll(&yscroll, 1, &runner)){
+                    sprite_move(key1.sprite, 0, -2);
+                    sprite_move(key2.sprite, 0, -2);
+                    sprite_move(key3.sprite, 0, -2);
+                    sprite_move(gate1.sprite, 0, -2);
+                    sprite_move(gate2.sprite, 0, -2);
+                    sprite_move(gate3.sprite, 0, -2);
                 }
             }
         
         } else if (button_pressed(BUTTON_UP)) {
 
             if (runner_up(&runner,xscroll,yscroll)){
-                if(safe_yscroll(&yscroll, -1)){
-                    sprite_move(key1.sprite, 0, 1);
-                    sprite_move(key2.sprite, 0, 1);
-                    sprite_move(key3.sprite, 0, 1);
-                    sprite_move(gate1.sprite, 0, 1);
+                if(safe_yscroll(&yscroll, -1, &runner)){
+                    sprite_move(key1.sprite, 0, 2);
+                    sprite_move(key2.sprite, 0, 2);
+                    sprite_move(key3.sprite, 0, 2);
+                    sprite_move(gate1.sprite, 0, 2);
+                    sprite_move(gate2.sprite, 0, 2);
+                    sprite_move(gate3.sprite, 0, 2);
                 }
             }
 
@@ -938,7 +958,7 @@ int main() {
             runner_stop(&runner);
         }
 
-        checkKeyCollisions(&runner, &key1, &key2, &key3, &gate1, xscroll, yscroll);
+        checkKeyCollisions(&runner, &key1, &key2, &key3, &gate1, &gate2, &gate3, xscroll, yscroll);
 
 
         /* wait for vblank before scrolling and moving sprites */
