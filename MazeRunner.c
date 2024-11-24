@@ -725,6 +725,43 @@ void gate_update(struct Gate* gate) {
 
 
 
+/* Method used to check if the runner touches a key */
+void checkKeyCollisions(struct Runner* run, struct Key* key1, struct Key* key2, struct Key* key3, struct Gate* gate1, int xscroll, int yscroll){
+
+    /* check the tile runner standing on */
+    unsigned short tile = tile_lookup(run->x + 8, run->y + 8, xscroll, yscroll, Maze, Maze_width, Maze_height);
+
+    if(tile >= 160 || tile <= 197){
+        /* returns 1 if passed index is wall, 0 if path */
+        int keys[] = {160,161,162,163,164,165,192,193,194,195,196,197};
+        int foundKey = 0;
+
+        for(int i = 0; i < 12; i++){
+            if(keys[i] == tile){
+                foundKey = keys[i];
+                break;
+            }
+        }
+        
+        if(foundKey == 160 || foundKey == 161 || foundKey == 192 || foundKey == 193){
+            key1->visible = 0;
+            run->keys = 1;
+            gate1->visible = 0;
+        }
+        else if(foundKey == 162 || foundKey == 163 || foundKey == 194 || foundKey == 195){
+            key2->visible = 0;
+            run->keys = 2;
+        }
+        else if(foundKey == 164 || foundKey == 165 || foundKey == 196 || foundKey == 197){
+            key3->visible = 0;
+            run->keys = 3;
+        }
+    }
+
+}
+
+
+
 /* Scrolls the screen if possible, but will not scroll off screen to repeat maze */
 int safe_xscroll(int *xscroll, int scrollBy) {
     //If it is safe to scroll right
@@ -901,12 +938,7 @@ int main() {
             runner_stop(&runner);
         }
 
-
-        /* If the runner grabs a key */
-        /*if((runner.x+8 < key1.x+16) && (runner.x+8 > key1.x) && (runner.y+8 > key1.y) && (runner.y+8 < key1.y+16)){
-            runner.keys = 1;
-            key1.visible = 0;
-        }*/
+        checkKeyCollisions(&runner, &key1, &key2, &key3, &gate1, xscroll, yscroll);
 
 
         /* wait for vblank before scrolling and moving sprites */
