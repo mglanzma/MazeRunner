@@ -461,12 +461,47 @@ unsigned short tile_lookup(int x, int y, int xscroll, int yscroll,
     return tilemap[index + offset];
 }
 
-/* returns 1 if passed index is wall, 0 if path */
-int isWall(unsigned short tile){
-    int walls[] = {2,3,6,7,10,11,16,17,34,35,38,39,42,43,48,49};
-    int foundWall = 0;
+/* helper method for isWall */
+int checkWall(int* wallss, int loop, unsigned short tilee){
+    int loops = loop;
+    int* walls = wallss;
+    unsigned short tile = tilee;
+    for(int i = 0; i < loops; i++){
+        if(walls[i] == tile){
+            return 1;
+        }
+    }
+    return 0;
+}
 
-    for(int i = 0; i < 16; i++){
+/* returns 1 if passed index is wall, 0 if path */
+int isWall(unsigned short tile, int numKeys){
+    //int walls[28];
+    //int loops = 0;
+    if(numKeys >= 3){
+        int walls[] = {2,3,6,7,10,11,16,17,34,35,38,39,42,43,48,49};
+        int loops = 16;
+        return checkWall(walls, loops, tile);
+    }
+    else if(numKeys >= 2){
+        int walls[] = {2,3,6,7,10,11,16,17,34,35,38,39,42,43,48,49,22,23,54,55};
+        int loops = 20;
+        return checkWall(walls, loops, tile);
+    }
+    else if(numKeys >= 1){
+        int walls[] = {2,3,6,7,10,11,16,17,34,35,38,39,42,43,48,49,20,21,22,23,52,53,54,55};
+        int loops = 24;
+        return checkWall(walls, loops, tile);
+    }
+    else{
+        int walls[] = {2,3,6,7,10,11,16,17,34,35,38,39,42,43,48,49,14,15,20,21,22,23,46,47,52,53,54,55};
+        int loops = 28;
+        return checkWall(walls, loops, tile);
+    }
+
+    /*int foundWall = 0;
+
+    for(int i = 0; i < loops; i++){
         if(walls[i] == tile){
             foundWall = 1;
             break;
@@ -478,7 +513,7 @@ int isWall(unsigned short tile){
     }
     else {
         return 0;
-    }
+    }*/
 }
 
 /* struct for our Runner sprite's logic and behavior */
@@ -535,8 +570,9 @@ int runner_left(struct Runner* run, int xscroll, int yscroll) {
 
         /* Check for tile to left */
         unsigned short tile = tile_lookup(run->x - 1, run->y + 8, xscroll, yscroll, Maze, Maze_width, Maze_height);
+        int numKey = run->keys;
 
-        if(!isWall(tile)){
+        if(!isWall(tile, numKey)){
             run->x--;
         }
         return 0;
@@ -554,8 +590,9 @@ int runner_right(struct Runner* run, int xscroll, int yscroll) {
         
         /* check for tile to right */
         unsigned short tile = tile_lookup(run->x + 16, run->y + 8, xscroll, yscroll, Maze, Maze_width, Maze_height);
+        int numKey = run->keys;
 
-        if(!isWall(tile)){
+        if(!isWall(tile, numKey)){
             run->x++;
         }
         return 0;
@@ -575,8 +612,9 @@ int runner_up(struct Runner* run, int xscroll, int yscroll) {
         
         /* check for tile above */
         unsigned short tile = tile_lookup(run->x + 8, run->y - 1, xscroll, yscroll, Maze, Maze_width, Maze_height);
+        int numKey = run->keys;
 
-        if(!isWall(tile)){
+        if(!isWall(tile, numKey)){
             run->y--;
         }
         return 0;
@@ -594,8 +632,9 @@ int runner_down(struct Runner* run, int xscroll, int yscroll) {
 
         /* check for tile below */
         unsigned short tile = tile_lookup(run->x + 8, run->y + 16, xscroll, yscroll, Maze, Maze_width, Maze_height);
+        int numKey = run->keys;
 
-        if(!isWall(tile)){
+        if(!isWall(tile, numKey)){
             run->y++;
         }
         return 0;
