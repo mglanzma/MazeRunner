@@ -27,44 +27,44 @@ getFrameDigit:
 
     //if we get here something went wrong return a default int like 0
     mov r0, #40 
-    bx lr     
+    mov pc, lr     
 
 return_48:
     mov r0, #48           
-    bx lr     
+    mov pc, lr     
 
 return_56:
     mov r0, #56           
-    bx lr     
+    mov pc, lr     
 
 return_64:
     mov r0, #64           
-    bx lr     
+    mov pc, lr     
 
 return_72:
     mov r0, #72           
-    bx lr     
+    mov pc, lr     
 
 return_80:
     mov r0, #80           
-    bx lr     
+    mov pc, lr     
 
 return_88:
     mov r0, #88          
-    bx lr     
+    mov pc, lr     
 
 return_96:
     mov r0, #96           
-    bx lr     
+    mov pc, lr     
 
 return_104:
     mov r0, #104           
-    bx lr     
+    mov pc, lr     
 
 return_112:
     mov r0, #112           
-    bx lr     
+    mov pc, lr     
 
 return_120:
     mov r0, #120           
-    bx lr     
+    mov pc, lr     
