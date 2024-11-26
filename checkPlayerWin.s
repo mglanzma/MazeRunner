@@ -19,7 +19,7 @@ checkPlayerWin:
     b return_false
 
 return_true:
-    move r0, #1
+    mov r0, #1
     mov pc, lr
 
 return_false:

@@ -25,7 +25,7 @@ getFrameDigit:
     cmp r0, #9          
     beq return_120     
 
-    //if we get here something went wrong return a default int like 0
+    /*if we get here something went wrong return a default int like 0*/
     mov r0, #40 
     mov pc, lr     
 

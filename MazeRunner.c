@@ -563,6 +563,10 @@ void runner_init(struct Runner* run) {
     run->sprite = sprite_init(run->x, run->y, SIZE_16_16, 0, 0, run->frame, 0);
 }
 
+/* Assembly Function that determines if the win conditions are met */
+int checkPlayerWin(int numKey, unsigned short tile);
+
+
 /* move the runner left or right returns if it is at edge of the screen */
 /* Also checks for wall collisions */
 int runner_left(struct Runner* run, int xscroll, int yscroll, bool* playerWon) {
@@ -580,7 +584,9 @@ int runner_left(struct Runner* run, int xscroll, int yscroll, bool* playerWon) {
         int numKey = run->keys;
 
         //Win condition
-        if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){
+        int hasWon = checkPlayerWin(numKey, tile);
+        /*if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){*/
+        if(hasWon){
             *playerWon = true;
         }
         //Path tile
@@ -605,7 +611,9 @@ int runner_right(struct Runner* run, int xscroll, int yscroll, bool* playerWon) 
         int numKey = run->keys;
 
         //Win condition
-        if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){
+        int hasWon = checkPlayerWin(numKey, tile);
+        /*if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){*/
+        if(hasWon){
             *playerWon = true;
         }
         //Path tile
@@ -632,7 +640,9 @@ int runner_up(struct Runner* run, int xscroll, int yscroll, bool* playerWon) {
         int numKey = run->keys;
 
         //Win condition
-        if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){
+        int hasWon = checkPlayerWin(numKey, tile);
+        /*if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){*/
+        if(hasWon){
             *playerWon = true;
         }
         //Path tile
@@ -657,7 +667,9 @@ int runner_down(struct Runner* run, int xscroll, int yscroll, bool* playerWon) {
         int numKey = run->keys;
         
         //Win condition
-        if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){
+        int hasWon = checkPlayerWin(numKey, tile);
+        /*if(numKey >= 3 && (tile == 22 || tile == 23 || tile == 54 || tile == 55)){*/
+        if(hasWon){
             *playerWon = true;
         }
         //Path tile
@@ -804,8 +816,11 @@ struct timerDigit {
     int num;
 };
 
+/* Assembly Function used to get the correct sprite frame based on input */
+int getFrameDigit(int digit);
+
 /* helper method to get frame from decimal number */
-int getFrameDigit(int digit){
+/*int getFrameDigit(int digit){
     if(digit == 0){
         return 48;
     }
@@ -831,7 +846,7 @@ int getFrameDigit(int digit){
     else{
         return 40;
     }
-}
+}*/
 
 /* initialize the timer digits */
 void timerDigit_init(struct timerDigit* dig, int x, int y, int num) {
